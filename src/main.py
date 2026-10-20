@@ -1,4 +1,9 @@
 from pathlib import Path
+import html
+
+from ai_engine.phishing_analyzer import analyze_phishing
+from ai_engine.evidence_explainer import format_evidence_explanations
+from ai_engine.response_recommender import get_recommendations
 
 from evidence_correlator import correlate_evidence
 
@@ -36,6 +41,91 @@ try:
     from osticket_client import create_ticket
 except ImportError:
     create_ticket = None
+
+def append_ai_results_to_report(report_file, ai_results):
+    """Append an escaped AI assessment section to the generated HTML report."""
+    if not report_file:
+        return
+
+    report_path = Path(report_file)
+    if not report_path.exists():
+        print("[AI] Report file was not found; AI results were not added to HTML.")
+        return
+
+    def safe(value):
+        return html.escape(str(value if value is not None else ""), quote=True)
+
+    status = ai_results.get("status", "unknown") if isinstance(ai_results, dict) else "unknown"
+    parts = [
+        '<section id="ai-analysis" style="margin:24px 0;padding:20px;border:1px solid #cbd5e1;border-radius:10px;font-family:Arial,sans-serif;">',
+        '<h2>AI-Assisted Phishing Assessment</h2>',
+    ]
+
+    if status == "success":
+        parts.extend([
+            f'<p><strong>AI verdict:</strong> {safe(ai_results.get("verdict", "inconclusive"))}</p>',
+            f'<p><strong>Confidence:</strong> {safe(ai_results.get("confidence", 0))}/100 '
+            '<span>(model-reported; not a calibrated probability)</span></p>',
+            f'<p><strong>Summary:</strong> {safe(ai_results.get("summary", "No summary returned."))}</p>',
+        ])
+
+        evidence_items = format_evidence_explanations(ai_results)
+        parts.append("<h3>Evidence Explanations</h3>")
+        if evidence_items:
+            parts.append("<ul>")
+            for item in evidence_items:
+                parts.append(f"<li>{safe(item)}</li>")
+            parts.append("</ul>")
+        else:
+            parts.append("<p>No validated evidence references were returned by the AI model.</p>")
+
+        recommendations = get_recommendations(ai_results)
+        parts.append("<h3>Recommended Response Actions</h3>")
+        if recommendations:
+            parts.append("<ul>")
+            for item in recommendations:
+                parts.append(
+                    "<li>"
+                    f'<strong>{safe(item.get("priority", "medium").upper())}:</strong> '
+                    f'{safe(item.get("action", ""))} '
+                    f'<p>{safe(item.get("rationale", ""))}</p>'
+                    '<em>Requires analyst approval. No action was executed.</em>'
+                    "</li>"
+                )
+            parts.append("</ul>")
+        else:
+            parts.append("<p>No response recommendations were returned.</p>")
+
+        limitations = ai_results.get("limitations", [])
+        if limitations:
+            parts.append("<h3>Limitations</h3><ul>")
+            for limitation in limitations:
+                parts.append(f"<li>{safe(limitation)}</li>")
+            parts.append("</ul>")
+    else:
+        parts.append(
+            f"<p>AI analysis status: <strong>{safe(status)}</strong></p>"
+            f"<p>{safe(ai_results.get('message', 'AI analysis was unavailable.'))}</p>"
+        )
+
+    parts.append(
+        "<p><strong>Important:</strong> AI output is advisory only. "
+        "The deterministic risk score remains unchanged, and no response actions were executed.</p>"
+    )
+    parts.append("</section>")
+
+    ai_html = "\\n".join(parts)
+    report_html = report_path.read_text(encoding="utf-8", errors="replace")
+    if "</body>" in report_html.lower():
+        # Insert before the closing body tag while preserving the original report.
+        body_index = report_html.lower().rfind("</body>")
+        report_html = report_html[:body_index] + ai_html + "\\n" + report_html[body_index:]
+    else:
+        report_html += "\\n" + ai_html
+
+    report_path.write_text(report_html, encoding="utf-8")
+    print("[AI] AI assessment added to the HTML report.")
+
 
 def choose_input():
 
@@ -815,6 +905,31 @@ def investigate_email(file_path):
     )
 
     # --------------------------------------------------
+    # 8A. AI-ASSISTED ANALYSIS (ADVISORY ONLY)
+    # --------------------------------------------------
+
+    print("\\n[8A] Running AI-assisted phishing analysis...")
+    ai_results = analyze_phishing(
+        email_details,
+        email_body,
+        header_results,
+        authentication_results,
+        ioc_results,
+        attachment_results,
+        virustotal_results,
+        urlscan_results,
+        evidence_results,
+        risk_results
+    )
+
+    if ai_results.get("status") == "success":
+        print(f"[AI] Verdict: {ai_results.get('verdict', 'inconclusive')}")
+        print(f"[AI] Confidence: {ai_results.get('confidence', 0)}/100")
+        print(f"[AI] Summary: {ai_results.get('summary', 'No summary returned.')}")
+    else:
+        print(f"[AI] {ai_results.get('message', 'AI analysis unavailable.')}")
+
+    # --------------------------------------------------
 
     # 9. DISPLAY SUMMARY
 
@@ -875,6 +990,9 @@ def investigate_email(file_path):
 
     )
 
+    # Add AI results to the saved HTML without changing report_generator.py.
+    append_ai_results_to_report(report_file, ai_results)
+
     print(
 
         f"\nReport saved to:\n"
@@ -918,6 +1036,8 @@ def investigate_email(file_path):
         "evidence_results": evidence_results,
 
         "risk_results": risk_results,
+
+        "ai_results": ai_results,
 
         "report_file": report_file,
 

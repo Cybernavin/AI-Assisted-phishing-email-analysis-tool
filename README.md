@@ -12,12 +12,14 @@ A Python-based SOC automation project for investigating suspicious phishing emai
 - urlscan.io analysis
 - Evidence correlation
 - Risk scoring and severity classification
+- **AI-assisted phishing assessment and evidence explanations**
+- **AI-generated investigation summaries and response recommendations**
+- **AI analysis with confidence reporting and identified limitations**
 - Automated HTML investigation report
 - osTicket incident ticket creation
 
 ## Architecture
-
-```text
+```
 Phishing Email
       ↓
 Email Parser
@@ -32,6 +34,10 @@ Evidence Correlation
       ↓
 Risk Scoring
       ↓
+AI-Assisted Phishing Assessment
+      ↓
 SOC Investigation Report
       ↓
 osTicket Incident
+
+```

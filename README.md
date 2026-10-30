@@ -1,3 +1,19 @@
+<p align="center">
+  <img src="assets/project-logo.png"
+       alt="AI-Assisted Phishing Email Analysis Tool"
+       width="220">
+</p>
+
+<h1 align="center">
+  AI-Assisted Phishing Email Analysis Tool
+</h1>
+
+<p align="center">
+  Automated phishing investigation with threat intelligence
+  and AI-assisted analysis.
+</p>
+
+
 # AI-Assisted Phishing Email Analysis Tool
 
 A Python-based SOC investigation tool that helps security analysts examine suspicious emails, identify potential phishing indicators, collect threat intelligence, and generate structured investigation reports.

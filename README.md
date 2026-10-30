@@ -1,7 +1,7 @@
 <p align="center">
   <img src="assets/project-logo.png"
        alt="AI-Assisted Phishing Email Analysis Tool"
-       width="220">
+       width="22">
 </p>
 
 <h1 align="center">
